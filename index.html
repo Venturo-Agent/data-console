@@ -1,0 +1,166 @@
+<!doctype html><html lang="zh-TW"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>資料工作台</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--cream:#F6F2EC;--card:#fff;--line:#E2D9CC;--gold:#B5935A;--goldh:#A07F46;--primary:#3F3833;--secondary:#6E6258;--muted:#A89C8E;--ok:#6E8B6E;--okbg:#E8EEE4;--warn:#A87C3D;--warnbg:#F5ECD8;--danger:#B07A6A;--dangerbg:#F3E6E0}
+*{box-sizing:border-box;margin:0;padding:0}body{font-family:"PingFang TC","Microsoft JhengHei",sans-serif;background:var(--cream);color:var(--primary)}
+.hide{display:none!important}
+/* login */
+#login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.lbox{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:30px;width:100%;max-width:360px}
+.logo{width:44px;height:44px;border-radius:11px;background:var(--gold);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;margin-bottom:14px}
+.lbox h1{font-size:19px;margin-bottom:4px}.lbox .sub{font-size:12.5px;color:var(--secondary);margin-bottom:18px}
+label{font-size:12.5px;color:var(--secondary);display:block;margin:10px 0 4px}
+input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-size:15px;background:var(--cream)}
+.btn{background:var(--gold);color:#fff;border:none;border-radius:9px;padding:11px;font-size:15px;font-weight:600;cursor:pointer;width:100%;margin-top:16px}
+.btn:hover{background:var(--goldh)}.btn:disabled{opacity:.5}
+.err{color:var(--danger);font-size:13px;margin-top:10px}
+/* app */
+#app{min-height:100vh}
+.top{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10}
+.brand{display:flex;align-items:center;gap:10px}.brand .l{width:32px;height:32px;border-radius:8px;background:var(--gold);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
+.brand h1{font-size:16px}.who{font-size:12.5px;color:var(--secondary)}
+.lnk{color:var(--gold);font-size:12.5px;cursor:pointer;background:none;border:none}
+.wrap{padding:16px 18px;max-width:1100px;margin:0 auto}
+.tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.tab{padding:8px 16px;font-size:14px;border-radius:9px;border:1px solid var(--line);background:var(--card);color:var(--secondary);cursor:pointer}
+.tab.on{background:var(--gold);color:#fff;border-color:var(--gold)}.tab .n{font-size:11.5px;opacity:.75;margin-left:6px}
+.toolbar{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.toolbar input{max-width:260px}.toolbar select{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);font-size:14px;color:var(--secondary)}
+.cnt{font-size:12.5px;color:var(--muted);margin-bottom:10px}
+.item{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:12px 14px;margin-bottom:9px;cursor:pointer}
+.item:hover{border-color:var(--gold)}
+.itop{display:flex;justify-content:space-between;gap:10px}
+.nm{font-weight:700;font-size:15px}.en{font-size:11.5px;color:var(--muted)}
+.reg{font-size:12px;color:var(--secondary);margin-top:2px}
+.desc{font-size:13px;color:var(--secondary);margin-top:6px;line-height:1.5}
+.badges{display:flex;gap:6px;flex-direction:column;align-items:flex-end}
+.b{font-size:11px;padding:2px 9px;border-radius:999px;white-space:nowrap}
+.bp{background:var(--warnbg);color:var(--warn)}.ba{background:var(--okbg);color:var(--ok)}.br{background:var(--dangerbg);color:var(--danger)}
+.cat{background:var(--cream);color:var(--secondary);border:1px solid var(--line)}
+.poldot{font-size:10px;color:var(--muted);margin-top:4px}
+/* modal */
+.mask{position:fixed;inset:0;background:rgba(40,35,30,.4);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
+.modal{background:var(--card);border-radius:14px;padding:22px;width:100%;max-width:520px;max-height:90vh;overflow:auto}
+.modal h2{font-size:17px;margin-bottom:14px}
+.modal textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-size:14px;background:var(--cream);min-height:90px;font-family:inherit;line-height:1.6}
+.row2{display:flex;gap:10px}.row2>div{flex:1}
+.mactions{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap}
+.btn2{padding:9px 14px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--secondary)}
+.btn2.gold{background:var(--gold);color:#fff;border-color:var(--gold)}.btn2.ok{background:var(--ok);color:#fff;border-color:var(--ok)}.btn2.danger{background:var(--danger);color:#fff;border-color:var(--danger)}
+.btn2:disabled{opacity:.5}
+.spin{text-align:center;padding:40px;color:var(--muted)}
+</style></head><body>
+
+<div id="login">
+ <div class="lbox">
+  <div class="logo">D</div>
+  <h1>資料工作台</h1>
+  <div class="sub">請以授權帳號登入</div>
+  <label>Email</label><input id="email" type="email" autocomplete="username"/>
+  <label>密碼</label><input id="pw" type="password" autocomplete="current-password"/>
+  <button class="btn" id="loginBtn" onclick="doLogin()">登入</button>
+  <div class="err hide" id="loginErr"></div>
+ </div>
+</div>
+
+<div id="app" class="hide">
+ <div class="top">
+  <div class="brand"><div class="l">D</div><h1>資料工作台</h1></div>
+  <div><span class="who" id="who"></span> <button class="lnk" onclick="doLogout()">登出</button></div>
+ </div>
+ <div class="wrap">
+  <div class="tabs" id="tabs"></div>
+  <div class="toolbar">
+   <input id="search" placeholder="🔍 搜尋名稱…" oninput="render()"/>
+   <select id="fcountry" onchange="render()"><option value="">全部國家</option></select>
+   <select id="fstatus" onchange="render()"><option value="">全部狀態</option><option value="pending">待審核</option><option value="approved">已通過</option><option value="rejected">已退回</option></select>
+  </div>
+  <div class="cnt" id="cnt"></div>
+  <div id="list"></div>
+ </div>
+</div>
+
+<div id="modalRoot"></div>
+
+<script>
+const SB=supabase.createClient('https://aawrgygqgemgqssflfrx.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFhd3JneWdxZ2VtZ3Fzc2ZsZnJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzMDM3NTYsImV4cCI6MjA5Mzg3OTc1Nn0.XqYwfN9_RkinYXFnLUG90sQVfvVEhF-9yFU40AOHJec')
+let DATA=[],activeAgency=null,editing=null
+function esc(t){return(t||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+function val(id){return document.getElementById(id).value}
+function show(id){document.getElementById(id).classList.remove('hide')}
+function hide(id){document.getElementById(id).classList.add('hide')}
+
+async function doLogin(){
+ const b=document.getElementById('loginBtn');b.disabled=true;document.getElementById('loginErr').classList.add('hide')
+ const {error}=await SB.auth.signInWithPassword({email:val('email'),password:val('pw')})
+ b.disabled=false
+ if(error){const e=document.getElementById('loginErr');e.textContent='登入失敗：'+error.message;e.classList.remove('hide');return}
+ boot()
+}
+async function doLogout(){await SB.auth.signOut();location.reload()}
+
+async function boot(){
+ const {data:{session}}=await SB.auth.getSession()
+ if(!session){hide('app');show('login');return}
+ hide('login');show('app')
+ document.getElementById('who').textContent=session.user.email
+ document.getElementById('list').innerHTML='<div class=spin>載入中…</div>'
+ await load()
+}
+async function load(){
+ const {data,error}=await SB.from('scrape_candidates').select('*').order('source_agency').order('country').order('name')
+ if(error){document.getElementById('list').innerHTML='<div class=spin>讀取失敗：'+esc(error.message)+'</div>';return}
+ DATA=data||[]
+ if(DATA.length===0){document.getElementById('list').innerHTML='<div class=spin>沒有資料（此帳號無權限）</div>';document.getElementById('tabs').innerHTML='';document.getElementById('cnt').textContent='';return}
+ // tabs
+ const ags=[...new Set(DATA.map(d=>d.source_agency))]
+ if(!activeAgency||!ags.includes(activeAgency))activeAgency=ags[0]
+ document.getElementById('tabs').innerHTML=ags.map(a=>'<div class="tab'+(a===activeAgency?' on':'')+'" onclick="setAgency(\''+a+'\')">'+esc(a)+'<span class=n>'+DATA.filter(d=>d.source_agency===a).length+'</span></div>').join('')
+ // filter
+ const cs=[...new Set(DATA.map(d=>d.country).filter(Boolean))]
+ document.getElementById('fcountry').innerHTML='<option value="">全部國家</option>'+cs.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join('')
+ render()
+}
+function setAgency(a){activeAgency=a;document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.textContent.startsWith(a)));render()}
+function render(){
+ const q=val('search').trim().toLowerCase(),fc=val('fcountry'),fs=val('fstatus')
+ let rows=DATA.filter(d=>d.source_agency===activeAgency&&(!fc||d.country===fc)&&(!fs||d.status===fs)&&(!q||((d.name||'')+(d.english_name||'')).toLowerCase().includes(q)))
+ document.getElementById('cnt').textContent='顯示 '+rows.length+' 個（'+activeAgency+'）'
+ document.getElementById('list').innerHTML=rows.slice(0,300).map(d=>{
+  const sb=d.status==='approved'?'<span class="b ba">已通過</span>':d.status==='rejected'?'<span class="b br">已退回</span>':'<span class="b bp">待審核</span>'
+  return '<div class=item onclick="openEdit(\''+d.id+'\')"><div class=itop><div><div class=nm>'+esc(d.name)+'</div>'+(d.english_name?'<div class=en>'+esc(d.english_name)+'</div>':'')+'<div class=reg>'+esc(d.country||'')+(d.region?' / '+esc(d.region):'')+'</div></div><div class=badges>'+sb+(d.category?'<span class="b cat">'+esc(d.category)+'</span>':'')+(d.description_polished?'':'<span class=poldot>待補</span>')+'</div></div><div class=desc>'+esc((d.description||'').slice(0,90))+'</div></div>'
+ }).join('')+(rows.length>300?'<div class=cnt>僅顯示前 300、請用搜尋縮小</div>':'')
+}
+function openEdit(id){
+ editing=DATA.find(d=>d.id===id);if(!editing)return
+ const d=editing
+ document.getElementById('modalRoot').innerHTML='<div class=mask onclick="if(event.target===this)closeEdit()"><div class=modal>'+
+  '<h2>編輯項目</h2>'+
+  '<div class=row2><div><label>名稱</label><input id=e_name value="'+esc(d.name)+'"/></div><div><label>英文名</label><input id=e_en value="'+esc(d.english_name||'')+'"/></div></div>'+
+  '<div class=row2><div><label>國家</label><input id=e_country value="'+esc(d.country||'')+'"/></div><div><label>地區</label><input id=e_region value="'+esc(d.region||'')+'"/></div></div>'+
+  '<label>分類</label><input id=e_cat value="'+esc(d.category||'')+'"/>'+
+  '<label>說明'+(d.description_polished?' ✅已潤':' ⚠️原文待改寫')+'</label><textarea id=e_desc>'+esc(d.description||'')+'</textarea>'+
+  '<div class=mactions>'+
+   '<button class="btn2 gold" onclick="saveEdit()">💾 儲存</button>'+
+   '<button class="btn2 ok" onclick="setStatus(\'approved\')">✓ 審核通過</button>'+
+   '<button class="btn2 danger" onclick="setStatus(\'rejected\')">✗ 退回</button>'+
+   '<button class=btn2 onclick="closeEdit()">取消</button>'+
+  '</div><div class=err hide id=mErr></div></div></div>'
+}
+function closeEdit(){document.getElementById('modalRoot').innerHTML='';editing=null}
+async function saveEdit(){
+ const patch={name:val('e_name'),english_name:val('e_en')||null,country:val('e_country')||null,region:val('e_region')||null,category:val('e_cat')||null,description:val('e_desc')||null,description_polished:true,updated_at:new Date().toISOString()}
+ const {error}=await SB.from('scrape_candidates').update(patch).eq('id',editing.id)
+ if(error){const e=document.getElementById('mErr');e.textContent='儲存失敗：'+error.message;e.classList.remove('hide');return}
+ Object.assign(editing,patch);closeEdit();render()
+}
+async function setStatus(s){
+ const {error}=await SB.from('scrape_candidates').update({status:s,reviewed_at:new Date().toISOString()}).eq('id',editing.id)
+ if(error){const e=document.getElementById('mErr');e.textContent='更新失敗：'+error.message;e.classList.remove('hide');return}
+ editing.status=s;closeEdit();render()
+}
+document.getElementById('pw').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()})
+boot()
+</script></body></html>
