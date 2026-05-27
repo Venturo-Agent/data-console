@@ -106,7 +106,7 @@ function render(){const q=v('search').trim().toLowerCase(),ft=v('ftype'),fc=v('f
  document.getElementById('list').innerHTML=rows.slice(0,300).map(d=>{
   const sb=d.status==='approved'?'<span class="b ba">已通過</span>':d.status==='rejected'?'<span class="b br">已退回</span>':'<span class="b bp">待審核</span>'
   const ms=missing(d)
-  return '<div class=item onclick="openEdit(\''+d.id+'\')"><div class=itop><div><div class=nm>'+esc(d.name)+' <span style=font-size:11px;color:#A89C8E>'+esc(d.type||'景點')+'</span></div>'+(d.english_name?'<div class=en>'+esc(d.english_name)+'</div>':'')+'<div class=reg>'+esc(d.country||'')+(d.region?' / '+esc(d.region):'')+(d.city?' / '+esc(d.city):'')+'</div></div><div class=badges>'+sb+(d.category?'<span class="b cat">'+esc(d.category)+'</span>':'')+'</div></div><div class=desc>'+esc((d.description||'').slice(0,90))+'</div>'+(ms.length?'<div class=miss>待補：'+ms.join('、')+'</div>':'')+'</div>'
+  return '<div class=item onclick="openEdit(\''+d.id+'\')"><div class=itop><div><div class=nm>'+esc(d.name)+' <span style=font-size:11px;color:#A89C8E>'+esc(d.type||'景點')+'</span></div>'+(d.english_name?'<div class=en>'+esc(d.english_name)+'</div>':'')+(d.local_name?'<div class=en style=opacity:.7>'+esc(d.local_name)+'</div>':'')+'<div class=reg>'+esc(d.country||'')+(d.region?' / '+esc(d.region):'')+(d.city?' / '+esc(d.city):'')+'</div></div><div class=badges>'+sb+(d.category?'<span class="b cat">'+esc(d.category)+'</span>':'')+(d.image_source==='wikidata'?'<span class="b" style="background:#eef1e8;color:#5f7a52">🆓圖</span>':'')+'</div></div><div class=desc>'+esc((d.description||'').slice(0,90))+'</div>'+(ms.length?'<div class=miss>待補：'+ms.join('、')+'</div>':'')+'</div>'
  }).join('')+(rows.length>300?'<div class=cnt>僅顯示前 300、請用搜尋/篩選縮小</div>':'')}
 function field(label,id,val,ph){return '<label>'+label+'</label><input id='+id+' value="'+esc(val==null?'':String(val))+'"'+(ph?' placeholder="'+ph+'"':'')+'/>'}
 function openEdit(id){editing=DATA.find(d=>d.id===id);if(!editing)return;const d=editing
@@ -114,7 +114,7 @@ function openEdit(id){editing=DATA.find(d=>d.id===id);if(!editing)return;const d
  document.getElementById('modalRoot').innerHTML='<div class=mask onclick="if(event.target===this)closeEdit()"><div class=modal>'+
   '<h2>編輯資料</h2><div style=font-size:12px;color:#A89C8E>來源：'+esc(d.source_agency)+(d.source_tour?' · '+esc(d.source_tour):'')+'</div>'+
   '<div class=sec>基本</div>'+
-  '<div class=row2><div>'+field('名稱','e_name',d.name)+'</div><div>'+field('英文名','e_english_name',d.english_name)+'</div></div>'+
+  '<div class=row3><div>'+field('名稱','e_name',d.name)+'</div><div>'+field('英文名','e_english_name',d.english_name)+'</div><div>'+field('當地語言名','e_local_name',d.local_name)+'</div></div>'+
   '<div class=row2><div><label>類型</label><select id=e_type><option'+((d.type==='景點'||!d.type)?' selected':'')+'>景點</option><option'+(d.type==='飯店'?' selected':'')+'>飯店</option><option'+(d.type==='餐廳'?' selected':'')+'>餐廳</option></select></div><div>'+field('分類','e_category',d.category,'如 自然景觀')+'</div></div>'+
   '<div class=sec>位置</div>'+
   '<div class=row3><div>'+field('國家','e_country',d.country)+'</div><div>'+field('地區','e_region',d.region)+'</div><div>'+field('城市','e_city',d.city)+'</div></div>'+
@@ -126,6 +126,7 @@ function openEdit(id){editing=DATA.find(d=>d.id===id);if(!editing)return;const d
   '<div class=row3><div>'+field('建議停留(分)','e_duration_minutes',d.duration_minutes)+'</div><div>'+field('價格/門票','e_ticket_price',d.ticket_price)+'</div><div>'+field('營業時間','e_opening_hours',d.opening_hours)+'</div></div>'+
   field('標籤（逗號分隔）','e_tags',tags,'親子, 必去')+
   field('圖片網址（逗號分隔）','e_images',imgs)+
+  ((d.images&&d.images.length)?'<div style="margin:4px 0 10px">'+(d.image_source==='wikidata'?'<span style="display:inline-block;font-size:11px;color:#5f7a52;background:#eef1e8;padding:2px 9px;border-radius:10px;margin-bottom:6px">🆓 Wikidata／維基共享（免費可商用）</span>':(d.image_source?'<span style="display:inline-block;font-size:11px;color:#A89C8E;margin-bottom:6px">來源：'+esc(d.image_source)+'</span>':''))+'<div style="display:flex;gap:6px;flex-wrap:wrap">'+d.images.map(u=>'<a href="'+esc(u)+'" target=_blank><img src="'+esc(u)+'" loading=lazy style="width:90px;height:64px;object-fit:cover;border-radius:5px;border:1px solid #E6DFD4"/></a>').join('')+'</div></div>':'')+
   '<div class=row2><div>'+field('電話','e_phone',d.phone)+'</div><div>'+field('官網','e_website',d.website)+'</div></div>'+
   '<label>備註</label><textarea id=e_notes style=min-height:50px>'+esc(d.notes||'')+'</textarea>'+
   '<div class=mactions>'+
@@ -138,7 +139,7 @@ function closeEdit(){document.getElementById('modalRoot').innerHTML='';editing=n
 function arr(s){return s.split(',').map(x=>x.trim()).filter(Boolean)}
 function num(s){const n=parseFloat(s);return isNaN(n)?null:n}
 async function saveEdit(){
- const p={name:v('e_name'),english_name:v('e_english_name')||null,type:v('e_type'),category:v('e_category')||null,
+ const p={name:v('e_name'),english_name:v('e_english_name')||null,local_name:v('e_local_name')||null,type:v('e_type'),category:v('e_category')||null,
   country:v('e_country')||null,region:v('e_region')||null,city:v('e_city')||null,address:v('e_address')||null,
   latitude:num(v('e_latitude')),longitude:num(v('e_longitude')),google_maps_url:v('e_google_maps_url')||null,
   description:v('e_description')||null,duration_minutes:v('e_duration_minutes')?parseInt(v('e_duration_minutes')):null,
