@@ -47,11 +47,17 @@ textarea{min-height:80px;line-height:1.6}
 .qf{display:inline-block;font-size:10.5px;padding:1px 7px;border-radius:10px;margin-right:4px}
 .qf.no{background:var(--dangerbg);color:var(--danger)}.qf.warn{background:var(--warnbg);color:var(--warn)}.qf.ok{background:var(--okbg);color:var(--ok)}
 .miss{font-size:11px;color:var(--danger);margin-top:4px}
-.mask{position:fixed;inset:0;background:rgba(40,35,30,.45);display:flex;align-items:center;justify-content:center;padding:14px;z-index:50}
-.modal{background:var(--card);border-radius:14px;padding:20px;width:100%;max-width:580px;max-height:92vh;overflow:auto}
+.mask{position:fixed;inset:0;background:rgba(40,35,30,.45);display:flex;align-items:center;justify-content:center;padding:10px;z-index:50}
+.modal{background:var(--card);border-radius:14px;padding:18px 22px;width:100%;max-width:1180px;max-height:96vh;overflow:auto}
 .modal h2{font-size:17px;margin-bottom:6px}
-.sec{font-size:12px;font-weight:700;color:var(--gold);margin:14px 0 4px;border-bottom:1px solid var(--line);padding-bottom:4px}
-.row2{display:flex;gap:10px}.row2>div{flex:1}.row3{display:flex;gap:8px}.row3>div{flex:1}
+.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 22px;margin-top:10px}
+.modal-grid .col-full{grid-column:1 / -1}
+.sec{font-size:11.5px;font-weight:700;color:var(--gold);margin:8px 0 4px;border-bottom:1px solid var(--line);padding-bottom:3px}
+.row2{display:flex;gap:8px}.row2>div{flex:1}.row3{display:flex;gap:6px}.row3>div{flex:1}
+.modal label{margin:6px 0 2px;font-size:11px}
+.modal input,.modal select{padding:6px 9px;font-size:13px}
+.modal textarea{padding:7px 9px;font-size:13px;min-height:60px}
+.modal textarea#e_description{min-height:74px}
 .gmaps{font-size:12.5px;color:var(--gold);cursor:pointer;background:none;border:none;margin:6px 0;text-decoration:underline;padding:0}
 .src-btn{display:inline-block;padding:8px 14px;background:var(--info);color:#fff;border-radius:8px;font-size:13px;text-decoration:none;font-weight:600;margin:4px 4px 0 0}
 .src-btn:hover{opacity:.9}
@@ -358,24 +364,39 @@ function openEditC(id){editing=CANDS.find(d=>d.id===id);editKind='c';if(!editing
  const srcBtns='<a class=src-btn target=_blank href="https://www.google.com/search?q='+encodeURIComponent(d.name+' '+(d.country||''))+'">🔎 Google 查這個地方</a>'+
   (d.wikidata_id&&d.wikidata_id.startsWith('Q')?'<a class=src-btn target=_blank href="https://www.wikidata.org/wiki/'+d.wikidata_id+'">📚 Wikidata</a>':'')+
   '<a class=src-btn target=_blank href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(d.name+' '+(d.country||''))+'">🗺 Google 地圖</a>'
+ const imgPreview=(d.images&&d.images.length)?'<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:4px">'+d.images.slice(0,5).map(u=>'<a href="'+esc(u)+'" target=_blank><img src="'+esc(u)+(u.indexOf("commons.wikimedia.org")>-1?(u.indexOf("?")>-1?"&":"?")+"width=240":"")+'" loading=lazy style="width:72px;height:54px;object-fit:cover;border-radius:4px;border:1px solid #E6DFD4"/></a>').join('')+'</div>':''
  document.getElementById('modalRoot').innerHTML='<div class=mask onclick="if(event.target===this)closeEdit()"><div class=modal>'+
-  '<h2>編輯資料</h2><div style=font-size:12px;color:#A89C8E>來源：'+esc(d.source_agency)+(d.source_tour?' · '+esc(d.source_tour):'')+'</div>'+
-  '<div style=margin-top:8px>'+srcBtns+'</div>'+
-  '<div class=sec>基本</div>'+
-  '<div class=row3><div>'+field('名稱','e_name',d.name)+'</div><div>'+field('英文名','e_english_name',d.english_name)+'</div><div>'+field('當地語言名','e_local_name',d.local_name)+'</div></div>'+
-  '<div class=row2><div><label>類型</label><select id=e_type><option'+((d.type==='景點'||!d.type)?' selected':'')+'>景點</option><option'+(d.type==='飯店'?' selected':'')+'>飯店</option><option'+(d.type==='餐廳'?' selected':'')+'>餐廳</option></select></div><div>'+field('分類','e_category',d.category,'如 自然景觀')+'</div></div>'+
-  '<div class=sec>位置</div>'+
-  '<div class=row3><div>'+field('國家','e_country',d.country)+'</div><div>'+field('地區','e_region',d.region)+'</div><div>'+field('城市','e_city',d.city)+'</div></div>'+
-  field('地址','e_address',d.address)+
-  '<div class=row3><div>'+field('緯度','e_latitude',d.latitude)+'</div><div>'+field('經度','e_longitude',d.longitude)+'</div><div>'+field('Google地圖','e_google_maps_url',d.google_maps_url)+'</div></div>'+
-  '<div class=sec>詳情</div>'+
-  '<label>描述</label><textarea id=e_description>'+esc(d.description||'')+'</textarea>'+
-  '<div class=row3><div>'+field('建議停留(分)','e_duration_minutes',d.duration_minutes)+'</div><div>'+field('價格/門票','e_ticket_price',d.ticket_price)+'</div><div>'+field('營業時間','e_opening_hours',d.opening_hours)+'</div></div>'+
-  field('標籤（逗號分隔）','e_tags',tags,'親子, 必去')+
-  field('圖片網址（逗號分隔）','e_images',imgs)+
-  ((d.images&&d.images.length)?'<div style="margin:6px 0 10px">'+(d.image_source==='wikidata'?'<span class="qf" style="background:#eef1e8;color:#5f7a52">🆓 Wikidata／維基共享（免費可商用）</span>':'')+'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">'+d.images.map(u=>'<a href="'+esc(u)+'" target=_blank><img src="'+esc(u)+(u.indexOf("commons.wikimedia.org")>-1?(u.indexOf("?")>-1?"&":"?")+"width=240":"")+'" loading=lazy style="width:90px;height:64px;object-fit:cover;border-radius:5px;border:1px solid #E6DFD4"/></a>').join('')+'</div></div>':'')+
-  '<div class=row2><div>'+field('電話','e_phone',d.phone)+'</div><div>'+field('官網','e_website',d.website)+'</div></div>'+
-  '<label>備註</label><textarea id=e_notes style=min-height:50px>'+esc(d.notes||'')+'</textarea>'+
+  '<h2>編輯資料 <span style="font-size:12px;color:#A89C8E;font-weight:normal">— 來源：'+esc(d.source_agency)+(d.source_tour?' · '+esc(d.source_tour):'')+'</span></h2>'+
+  '<div style=margin-top:6px>'+srcBtns+'</div>'+
+  '<div class=modal-grid>'+
+   // 左欄：基本 + 位置
+   '<div>'+
+    '<div class=sec>基本</div>'+
+    '<div class=row2><div>'+field('名稱','e_name',d.name)+'</div><div>'+field('英文名','e_english_name',d.english_name)+'</div></div>'+
+    '<div class=row2><div>'+field('當地語言名','e_local_name',d.local_name)+'</div><div><label>類型</label><select id=e_type><option'+((d.type==='景點'||!d.type)?' selected':'')+'>景點</option><option'+(d.type==='飯店'?' selected':'')+'>飯店</option><option'+(d.type==='餐廳'?' selected':'')+'>餐廳</option></select></div></div>'+
+    field('分類','e_category',d.category,'如 自然景觀')+
+    '<div class=sec>位置</div>'+
+    '<div class=row3><div>'+field('國家','e_country',d.country)+'</div><div>'+field('地區','e_region',d.region)+'</div><div>'+field('城市','e_city',d.city)+'</div></div>'+
+    field('地址','e_address',d.address)+
+    '<div class=row2><div>'+field('緯度','e_latitude',d.latitude)+'</div><div>'+field('經度','e_longitude',d.longitude)+'</div></div>'+
+    field('Google 地圖連結','e_google_maps_url',d.google_maps_url)+
+   '</div>'+
+   // 右欄：詳情 + 聯絡 + 標籤 + 圖
+   '<div>'+
+    '<div class=sec>詳情</div>'+
+    '<div class=row3><div>'+field('停留分鐘','e_duration_minutes',d.duration_minutes)+'</div><div>'+field('門票價','e_ticket_price',d.ticket_price)+'</div><div>'+field('營業時間','e_opening_hours',d.opening_hours)+'</div></div>'+
+    '<div class=row2><div>'+field('電話','e_phone',d.phone)+'</div><div>'+field('官網','e_website',d.website)+'</div></div>'+
+    field('標籤（逗號分隔）','e_tags',tags,'親子, 必去')+
+    field('圖片網址（逗號分隔）','e_images',imgs)+
+    imgPreview+
+   '</div>'+
+   // 全寬：描述 + 備註
+   '<div class=col-full>'+
+    '<div class=sec>描述（給 AI 客服讀）</div>'+
+    '<textarea id=e_description>'+esc(d.description||'')+'</textarea>'+
+    '<label>備註</label><textarea id=e_notes style=min-height:46px>'+esc(d.notes||'')+'</textarea>'+
+   '</div>'+
+  '</div>'+
   '<div class=mactions>'+
    '<button class="btn2 gold" onclick="saveC()">💾 儲存</button>'+
    '<button class="btn2 ok" onclick="setStatusC(\'approved\')">✓ 審核通過</button>'+
@@ -392,24 +413,30 @@ function openEditP(id){editing=PRODS.find(p=>p.id===id);editKind='p';if(!editing
   '<h2>'+esc(p.title||p.source_code)+'</h2>'+
   '<div style=font-size:12px;color:#A89C8E>'+esc(p.source_agency)+' · '+esc(p.source_code||'')+'</div>'+
   '<div style=margin-top:10px>'+srcBtns+'</div>'+
-  '<div class=sec>資料速覽</div>'+
-  '<div class=kvgrid>'+
-   '<div class=k>目的地</div><div>'+esc(dests||'(無)')+'</div>'+
-   '<div class=k>國家</div><div>'+esc(p.country||'(無)')+'</div>'+
-   '<div class=k>價格</div><div>'+esc(p.price_text||(p.price_from?'NT$'+p.price_from.toLocaleString():'(無)'))+(p.price_from?' 起':'')+'</div>'+
-   '<div class=k>天數</div><div>'+(p.duration_days?p.duration_days+'日':(p.duration_hours?p.duration_hours+'小時':'(無)'))+'</div>'+
-   '<div class=k>出發場次</div><div>'+(p.departures?p.departures.length+' 場':'(無)')+'</div>'+
-   '<div class=k>類型</div><div>'+esc(p.product_type||'group_tour')+'</div>'+
-   '<div class=k>狀態</div><div>'+esc(p.status||'unknown')+'</div>'+
+  '<div class=modal-grid>'+
+   '<div>'+
+    '<div class=sec>速覽</div>'+
+    '<div class=kvgrid>'+
+     '<div class=k>目的地</div><div>'+esc(dests||'(無)')+'</div>'+
+     '<div class=k>國家</div><div>'+esc(p.country||'(無)')+'</div>'+
+     '<div class=k>價格</div><div>'+esc(p.price_text||(p.price_from?'NT$'+p.price_from.toLocaleString():'(無)'))+(p.price_from?' 起':'')+'</div>'+
+     '<div class=k>天數</div><div>'+(p.duration_days?p.duration_days+'日':(p.duration_hours?p.duration_hours+'小時':'(無)'))+'</div>'+
+     '<div class=k>場次</div><div>'+(p.departures?p.departures.length+' 場':'(無)')+'</div>'+
+     '<div class=k>類型</div><div>'+esc(p.product_type||'group_tour')+'</div>'+
+     '<div class=k>狀態</div><div>'+esc(p.status||'unknown')+'</div>'+
+    '</div>'+
+    (deps?'<div class=sec>出發日期</div><div style="font-size:12px;line-height:1.6;max-height:120px;overflow:auto;background:var(--cream);padding:8px 10px;border-radius:6px">'+esc(deps)+'</div>':'')+
+   '</div>'+
+   '<div>'+
+    '<div class=sec>編輯</div>'+
+    field('標題','e_p_title',p.title)+
+    '<div class=row2><div>'+field('國家','e_p_country',p.country)+'</div><div>'+field('天數','e_p_days',p.duration_days)+'</div></div>'+
+    field('目的地（逗號分隔）','e_p_dests',dests,'沖繩, 那霸')+
+    field('價格文字','e_p_price_text',p.price_text)+
+    field('標籤（逗號分隔）','e_p_tags',tags,'親子, 玩水, 賞楓')+
+    '<label>備註</label><textarea id=e_p_notes>'+esc(p.notes||'')+'</textarea>'+
+   '</div>'+
   '</div>'+
-  (deps?'<div class=sec>所有出發日期</div><div style="font-size:13px;line-height:1.7">'+esc(deps)+'</div>':'')+
-  '<div class=sec>編輯</div>'+
-  field('標題','e_p_title',p.title)+
-  field('目的地（逗號分隔）','e_p_dests',dests,'沖繩, 那霸')+
-  '<div class=row2><div>'+field('國家','e_p_country',p.country)+'</div><div>'+field('天數','e_p_days',p.duration_days)+'</div></div>'+
-  field('價格文字','e_p_price_text',p.price_text)+
-  field('標籤（逗號分隔）','e_p_tags',tags,'親子, 玩水, 賞楓')+
-  '<label>備註</label><textarea id=e_p_notes style=min-height:50px>'+esc(p.notes||'')+'</textarea>'+
   '<div class=mactions>'+
    '<button class="btn2 gold" onclick="saveP()">💾 儲存</button>'+
    '<button class=btn2 onclick="closeEdit()">關閉</button>'+
