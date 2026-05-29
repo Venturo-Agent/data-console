@@ -95,6 +95,7 @@ textarea{min-height:80px;line-height:1.6}
    <div class="mode-btn" id="m-cands" onclick="setMode('cands')">📍 候選資料（爬蟲原始）</div>
    <div class="mode-btn" id="m-prods" onclick="setMode('prods')">🎫 團體產品</div>
    <div class="mode-btn" id="m-compare" onclick="setMode('compare')">🔍 商品比對</div>
+   <div class="mode-btn" id="m-merges" onclick="setMode('merges')">🔗 近似名稱合併</div>
    <div class="mode-btn" id="m-unknown" onclick="setMode('unknown')">📥 客戶問過但不知道</div>
    <div class="mode-btn" id="m-dash" onclick="setMode('dash')">📊 總覽</div>
   </div>
@@ -104,7 +105,7 @@ textarea{min-height:80px;line-height:1.6}
 <div id="modalRoot"></div>
 <script>
 const SB=supabase.createClient('https://aawrgygqgemgqssflfrx.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFhd3JneWdxZ2VtZ3Fzc2ZsZnJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzMDM3NTYsImV4cCI6MjA5Mzg3OTc1Nn0.XqYwfN9_RkinYXFnLUG90sQVfvVEhF-9yFU40AOHJec')
-let CANDS=[],PRODS=[],MASTERS=[],UNKNOWN=[],MODE='master',activeAgency=null,editing=null,editKind='c'
+let CANDS=[],PRODS=[],MASTERS=[],UNKNOWN=[],MERGE_SUGS=[],MODE='master',activeAgency=null,editing=null,editKind='c'
 function esc(t){return(t||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function v(id){const e=document.getElementById(id);return e?e.value:''}
 function show(id){document.getElementById(id).classList.remove('hide')}
@@ -134,8 +135,8 @@ async function loadAll(tbl){
  console.log('[loadAll '+tbl+'] FINAL='+all.length)
  return all}
 async function load(){
- const [c,p,m,u]=await Promise.all([loadAll('scrape_candidates'),loadAll('scrape_products'),loadAll('attractions_master'),loadAll('customer_unknown_queries')])
- CANDS=c||[];PRODS=p||[];MASTERS=m||[];UNKNOWN=u||[]
+ const [c,p,m,u,s]=await Promise.all([loadAll('scrape_candidates'),loadAll('scrape_products'),loadAll('attractions_master'),loadAll('customer_unknown_queries'),loadAll('master_merge_suggestions')])
+ CANDS=c||[];PRODS=p||[];MASTERS=m||[];UNKNOWN=u||[];MERGE_SUGS=s||[]
  if(!CANDS.length&&!PRODS.length){document.getElementById('view').innerHTML='<div class=spin>無資料(權限?)</div>';return}
  const ags=[...new Set([...CANDS.map(d=>d.source_agency),...PRODS.map(d=>d.source_agency)])]
  if(!activeAgency||!ags.includes(activeAgency))activeAgency=ags[0]
@@ -147,6 +148,7 @@ function render(){
  if(MODE==='dash'){renderDash();return}
  if(MODE==='compare'){renderCompare();return}
  if(MODE==='master'){renderMaster();return}
+ if(MODE==='merges'){renderMerges();return}
  if(MODE==='unknown'){renderUnknown();return}
  const items=MODE==='cands'?CANDS:PRODS
  const ags=[...new Set(items.map(d=>d.source_agency))]
@@ -296,6 +298,74 @@ function renderMaster(){
    '</div>'
  }).join('')
  document.getElementById('view').innerHTML=banner+bar+stat+list+(rows.length>300?'<div class=cnt>僅顯示前 300、用搜尋縮小</div>':'')
+}
+
+function renderMerges(){
+ const pend=MERGE_SUGS.filter(s=>s.status==='pending')
+ // 按相似度排
+ pend.sort((a,b)=>(b.similarity_score||0)-(a.similarity_score||0))
+ const banner='<div style="background:var(--warnbg);color:var(--warn);padding:10px 14px;border-radius:9px;margin-bottom:14px;font-size:13px">🔗 <b>近似名稱合併建議</b>：可能是同一個景點但寫法不同（譬如「清水寺」vs「京都清水寺」）。挑一邊保留、另一邊的爬蟲資料會搬過來。</div>'
+ const stat='<div class=cnt>待你拍板 '+pend.length+' 對</div>'
+ const masterMap=new Map(MASTERS.map(m=>[m.id,m]))
+ const candCnt=id=>CANDS.filter(c=>c.master_id===id).length
+ const agencies=id=>[...new Set(CANDS.filter(c=>c.master_id===id).map(c=>c.source_agency))]
+ const list=pend.slice(0,200).map(s=>{
+  const a=masterMap.get(s.master_a_id), b=masterMap.get(s.master_b_id)
+  if(!a||!b)return ''
+  const score=(Number(s.similarity_score||0)*100|0)+'%'
+  return '<div style="background:var(--card);border:1px solid var(--line);border-radius:11px;padding:14px;margin-bottom:10px">'+
+   '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:8px">相似度 <b style="color:var(--gold)">'+score+'</b> · '+esc(s.reason)+'</div>'+
+   '<div style="display:grid;grid-template-columns:1fr auto 1fr;gap:14px;align-items:center">'+
+    // 左 A
+    '<div style="padding:10px;background:var(--cream);border-radius:8px">'+
+     '<div style="font-weight:700;font-size:14px">'+esc(a.name_zh)+'</div>'+
+     '<div style="font-size:11px;color:var(--muted);margin-top:3px">'+esc(a.country||'')+(a.city?' / '+esc(a.city):'')+' · ⭐'+(a.master_score||0)+'家 · 連結 '+candCnt(a.id)+' 筆</div>'+
+     (a.description?'<div style="font-size:11px;color:var(--secondary);margin-top:4px;line-height:1.5">'+esc((a.description||'').substring(0,80))+'</div>':'')+
+     '<button class="btn2 ok" style="margin-top:8px;font-size:11px;padding:6px 10px" onclick="doMerge(\''+s.id+'\',\'a\')">保留這邊 ←</button>'+
+    '</div>'+
+    '<div style="font-size:24px;color:var(--muted)">↔</div>'+
+    // 右 B
+    '<div style="padding:10px;background:var(--cream);border-radius:8px">'+
+     '<div style="font-weight:700;font-size:14px">'+esc(b.name_zh)+'</div>'+
+     '<div style="font-size:11px;color:var(--muted);margin-top:3px">'+esc(b.country||'')+(b.city?' / '+esc(b.city):'')+' · ⭐'+(b.master_score||0)+'家 · 連結 '+candCnt(b.id)+' 筆</div>'+
+     (b.description?'<div style="font-size:11px;color:var(--secondary);margin-top:4px;line-height:1.5">'+esc((b.description||'').substring(0,80))+'</div>':'')+
+     '<button class="btn2 ok" style="margin-top:8px;font-size:11px;padding:6px 10px" onclick="doMerge(\''+s.id+'\',\'b\')">→ 保留這邊</button>'+
+    '</div>'+
+   '</div>'+
+   '<div style="margin-top:8px;text-align:center"><button class=btn2 style="font-size:11px;padding:5px 10px" onclick="doReject(\''+s.id+'\')">⛔ 不是同一個 / 跳過</button></div>'+
+  '</div>'
+ }).join('')
+ document.getElementById('view').innerHTML=banner+stat+list+(pend.length>200?'<div class=cnt>顯示前 200 對、處理完會自動載入下一批</div>':'')
+}
+
+async function doMerge(sugId, keepSide){
+ const sug=MERGE_SUGS.find(s=>s.id===sugId)
+ if(!sug)return
+ const keepId=keepSide==='a'?sug.master_a_id:sug.master_b_id
+ const delId=keepSide==='a'?sug.master_b_id:sug.master_a_id
+ // 1. candidates 改連
+ const {error:ue}=await SB.from('scrape_candidates').update({master_id:keepId}).eq('master_id',delId)
+ if(ue){alert('改連失敗: '+ue.message);return}
+ // 2. master_score 加
+ const delMaster=MASTERS.find(m=>m.id===delId)
+ const keepMaster=MASTERS.find(m=>m.id===keepId)
+ const newScore=(keepMaster?.master_score||0)+(delMaster?.master_score||0)
+ await SB.from('attractions_master').update({master_score:newScore,notes:(keepMaster?.notes||'')+' / 合併自：'+(delMaster?.name_zh||'')}).eq('id',keepId)
+ // 3. 標已合併
+ await SB.from('master_merge_suggestions').update({status:'merged',reviewed_at:new Date().toISOString()}).eq('id',sugId)
+ // 4. 刪 master
+ await SB.from('attractions_master').delete().eq('id',delId)
+ // local update
+ sug.status='merged'
+ const idx=MASTERS.findIndex(m=>m.id===delId);if(idx>=0)MASTERS.splice(idx,1)
+ if(keepMaster)keepMaster.master_score=newScore
+ CANDS.filter(c=>c.master_id===delId).forEach(c=>c.master_id=keepId)
+ render()
+}
+async function doReject(sugId){
+ await SB.from('master_merge_suggestions').update({status:'rejected',reviewed_at:new Date().toISOString()}).eq('id',sugId)
+ const sug=MERGE_SUGS.find(s=>s.id===sugId);if(sug)sug.status='rejected'
+ render()
 }
 
 function renderUnknown(){
