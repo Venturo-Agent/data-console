@@ -85,10 +85,12 @@ textarea{min-height:80px;line-height:1.6}
   <div><span class="who" id="who"></span> <button class="lnk" onclick="doLogout()">登出</button></div></div>
  <div class="wrap">
   <div class="modes">
-   <div class="mode-btn on" id="m-cands" onclick="setMode('cands')">📍 景點 / 飯店 / 餐廳</div>
+   <div class="mode-btn on" id="m-master" onclick="setMode('master')">🏛 景點主檔</div>
+   <div class="mode-btn" id="m-cands" onclick="setMode('cands')">📍 候選資料（爬蟲原始）</div>
    <div class="mode-btn" id="m-prods" onclick="setMode('prods')">🎫 團體產品</div>
    <div class="mode-btn" id="m-compare" onclick="setMode('compare')">🔍 商品比對</div>
-   <div class="mode-btn" id="m-dash" onclick="setMode('dash')">📊 Dashboard</div>
+   <div class="mode-btn" id="m-unknown" onclick="setMode('unknown')">📥 客戶問過但不知道</div>
+   <div class="mode-btn" id="m-dash" onclick="setMode('dash')">📊 總覽</div>
   </div>
   <div id="view"></div>
  </div>
@@ -96,7 +98,7 @@ textarea{min-height:80px;line-height:1.6}
 <div id="modalRoot"></div>
 <script>
 const SB=supabase.createClient('https://aawrgygqgemgqssflfrx.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFhd3JneWdxZ2VtZ3Fzc2ZsZnJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzMDM3NTYsImV4cCI6MjA5Mzg3OTc1Nn0.XqYwfN9_RkinYXFnLUG90sQVfvVEhF-9yFU40AOHJec')
-let CANDS=[],PRODS=[],MODE='cands',activeAgency=null,editing=null,editKind='c'
+let CANDS=[],PRODS=[],MASTERS=[],UNKNOWN=[],MODE='master',activeAgency=null,editing=null,editKind='c'
 function esc(t){return(t||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function v(id){const e=document.getElementById(id);return e?e.value:''}
 function show(id){document.getElementById(id).classList.remove('hide')}
@@ -126,8 +128,8 @@ async function loadAll(tbl){
  console.log('[loadAll '+tbl+'] FINAL='+all.length)
  return all}
 async function load(){
- const [c,p]=await Promise.all([loadAll('scrape_candidates'),loadAll('scrape_products')])
- CANDS=c||[];PRODS=p||[]
+ const [c,p,m,u]=await Promise.all([loadAll('scrape_candidates'),loadAll('scrape_products'),loadAll('attractions_master'),loadAll('customer_unknown_queries')])
+ CANDS=c||[];PRODS=p||[];MASTERS=m||[];UNKNOWN=u||[]
  if(!CANDS.length&&!PRODS.length){document.getElementById('view').innerHTML='<div class=spin>無資料(權限?)</div>';return}
  const ags=[...new Set([...CANDS.map(d=>d.source_agency),...PRODS.map(d=>d.source_agency)])]
  if(!activeAgency||!ags.includes(activeAgency))activeAgency=ags[0]
@@ -138,6 +140,8 @@ function tagsHtml(arr){if(!arr||!arr.length)return '';return arr.slice(0,6).map(
 function render(){
  if(MODE==='dash'){renderDash();return}
  if(MODE==='compare'){renderCompare();return}
+ if(MODE==='master'){renderMaster();return}
+ if(MODE==='unknown'){renderUnknown();return}
  const items=MODE==='cands'?CANDS:PRODS
  const ags=[...new Set(items.map(d=>d.source_agency))]
  const cs=[...new Set(items.map(d=>d.country).filter(Boolean))]
@@ -253,6 +257,62 @@ function renderCompare(){
  }).join('')
  document.getElementById('view').innerHTML=html
 }
+function renderMaster(){
+ // 景點主檔 mode — 去重後的乾淨清單
+ const q=v('search').trim().toLowerCase()
+ const fc=v('fcountry')
+ const fst=v('fsrc')
+ const cs=[...new Set(MASTERS.map(m=>m.country).filter(Boolean))]
+ const banner='<div style="background:var(--okbg);color:var(--ok);padding:10px 14px;border-radius:9px;margin-bottom:14px;font-size:13px">🏛 <b>景點主檔</b>：5 家旅行社爬到的同名景點已合併、每個景點只顯示一次。分數越高 = 越多家爬到 = 客人越會問。客戶問過但 DB 沒有的、看「📥 客戶問過但不知道」分頁。</div>'
+ let bar='<div class=toolbar>'
+ bar+='<input id="search" placeholder="🔍 譬如：清水寺、淺草寺、機場" oninput="render()" value="'+esc(v('search'))+'" style="max-width:280px"/>'
+ bar+='<select id="fcountry" onchange="render()"><option value="">全部國家</option>'+cs.map(c=>'<option'+(v('fcountry')===c?' selected':'')+' value="'+esc(c)+'">'+esc(c)+'</option>').join('')+'</select>'
+ bar+='<select id="fsrc" onchange="render()"><option value="">全部來源</option><option'+(v('fsrc')==='scraped'?' selected':'')+' value="scraped">🤖 爬蟲</option><option'+(v('fsrc')==='manual'?' selected':'')+' value="manual">👤 人工灌入</option><option'+(v('fsrc')==='customer_request'?' selected':'')+' value="customer_request">🙋 客戶反饋</option></select>'
+ bar+='<select id="fscore" onchange="render()"><option value="">全部分數</option><option'+(v('fscore')==='5'?' selected':'')+' value="5">⭐⭐⭐⭐⭐ 5 家共識</option><option'+(v('fscore')==='4'?' selected':'')+' value="4">⭐⭐⭐⭐ 4 家</option><option'+(v('fscore')==='3'?' selected':'')+' value="3">⭐⭐⭐ 3 家</option><option'+(v('fscore')==='2'?' selected':'')+' value="2">⭐⭐ 2 家</option><option'+(v('fscore')==='1'?' selected':'')+' value="1">⭐ 1 家</option></select>'
+ bar+='</div>'
+ const fsc=v('fscore')
+ let rows=MASTERS.filter(m=>(!fc||m.country===fc)&&(!fst||m.source_type===fst)&&(!fsc||String(m.master_score)===fsc)&&(!q||((m.name_zh||'')+(m.name_en||'')+(m.country||'')+(m.city||'')+(m.description||'')+(m.tags||[]).join(' ')).toLowerCase().includes(q)))
+ rows.sort((a,b)=>(b.master_score||0)-(a.master_score||0))
+ const stat='<div class=cnt>顯示 '+rows.length+' / '+MASTERS.length+' 個景點主檔</div>'
+ const list=rows.slice(0,300).map(m=>{
+  const srcBadge=m.source_type==='manual'?'<span class="b" style="background:#FFE8C7;color:var(--warn)">👤 私房</span>':m.source_type==='customer_request'?'<span class="b" style="background:var(--infobg);color:var(--info)">🙋 客戶補</span>':'<span class="b cat">🤖 爬蟲</span>'
+  const stars='⭐'.repeat(Math.min(m.master_score||0,5))
+  const candHere=CANDS.filter(c=>c.master_id===m.id)
+  const agencies=[...new Set(candHere.map(c=>c.source_agency))]
+  return '<div class=item>'+
+   '<div class=itop><div style=flex:1>'+
+    '<div class=nm>'+esc(m.name_zh)+(m.name_en?' <span style=font-size:11px;color:#A89C8E>'+esc(m.name_en)+'</span>':'')+'</div>'+
+    '<div class=reg>'+esc(m.country||'')+(m.region?' / '+esc(m.region):'')+(m.city?' / '+esc(m.city):'')+'</div>'+
+    (m.description?'<div class=desc>'+esc((m.description||'').substring(0,140))+'</div>':'')+
+    (m.tags&&m.tags.length?'<div style="margin-top:4px">'+tagsHtml(m.tags)+'</div>':'')+
+    (agencies.length?'<div style="font-size:11px;color:var(--muted);margin-top:6px">📦 來源：'+agencies.map(a=>'<span class=tag style="font-size:10px;padding:1px 6px">'+esc(a)+'</span>').join('')+'</div>':'')+
+   '</div><div class=badges>'+srcBadge+'<span class="b" style="background:var(--cream)">'+stars+' '+m.master_score+'家</span>'+(m.latitude?'<span class="b ba" style="font-size:10px">📍有座標</span>':'<span class="b br" style="font-size:10px">無座標</span>')+'</div></div>'+
+   '</div>'
+ }).join('')
+ document.getElementById('view').innerHTML=banner+bar+stat+list+(rows.length>300?'<div class=cnt>僅顯示前 300、用搜尋縮小</div>':'')
+}
+
+function renderUnknown(){
+ // 客戶問過但不知道收件夾
+ const banner='<div style="background:var(--infobg);color:var(--info);padding:10px 14px;border-radius:9px;margin-bottom:14px;font-size:13px">📥 <b>客戶問過但 AI 不知道</b>：累積客人問過、但 DB 找不到的問題。定期看、值得就加進主檔、不值得就丟。<b>越用 AI 越強</b>。</div>'
+ const pending=UNKNOWN.filter(u=>u.status==='pending')
+ const others=UNKNOWN.filter(u=>u.status!=='pending')
+ let html=banner
+ html+='<div class=cnt>未處理 '+pending.length+' 個 / 已處理 '+others.length+' 個</div>'
+ if(!UNKNOWN.length){
+  html+='<div style="background:var(--card);border:1px dashed var(--line);padding:30px;border-radius:11px;text-align:center;color:var(--muted)">📭 還沒有客戶問過 AI 不知道的問題。<br/>當 AI 客服上線、查不到的問題會自動進來。</div>'
+ } else {
+  html+=pending.map(u=>'<div class=item>'+
+   '<div class=itop><div style=flex:1>'+
+    '<div class=nm>「'+esc(u.query_text||'')+'」</div>'+
+    (u.customer_context?'<div class=desc>客人脈絡：'+esc(u.customer_context.substring(0,100))+'</div>':'')+
+    '<div style="font-size:11px;color:var(--muted);margin-top:4px">第一次問 '+(u.first_asked_at?u.first_asked_at.substring(0,10):'?')+' · 累積 '+u.asked_count+' 次</div>'+
+   '</div><div class=badges><span class="b bp">待處理</span></div></div>'+
+  '</div>').join('')
+ }
+ document.getElementById('view').innerHTML=html
+}
+
 function renderDash(){
  const ags=[...new Set([...CANDS.map(d=>d.source_agency),...PRODS.map(d=>d.source_agency)])]
  const total=CANDS.length,withImg=CANDS.filter(d=>d.images&&d.images.length).length
